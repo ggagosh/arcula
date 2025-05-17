@@ -189,7 +189,7 @@ async fn create_test_data(config: &MongoConfig, db_name: &str) -> Result<()> {
             "test_field": format!("test_value_{}", i),
             "test_number": i
         };
-        collection.insert_one(doc, None).await?;
+        collection.insert_one(doc).await?;
     }
 
     Ok(())
@@ -204,7 +204,7 @@ async fn verify_synced_data(config: &MongoConfig, db_name: &str) -> Result<bool>
     let collection = db.collection::<Document>("test_collection");
 
     // Count documents
-    let count = collection.count_documents(doc! {}, None).await?;
+    let count = collection.count_documents(doc! {}).await?;
 
     Ok(count == 10)
 }
@@ -358,7 +358,7 @@ async fn test_backup_restore() -> Result<()> {
     // Clear the database
     let client_options = source_config.get_client_options().await?;
     let client = Client::with_options(client_options)?;
-    client.database(test_db).drop(None).await?;
+    client.database(test_db).drop().await?;
 
     // Restore from backup
     let restore_result = mongodb::restore_backup(&source_config, test_db, &backup_path).await;

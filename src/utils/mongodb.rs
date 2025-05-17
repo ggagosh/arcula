@@ -11,7 +11,7 @@ pub async fn list_databases(config: &MongoConfig) -> Result<Vec<String>> {
     let client_options = config.get_client_options().await?;
     let client = mongodb::Client::with_options(client_options)?;
 
-    let db_names = client.list_database_names(None, None).await?;
+    let db_names = client.list_database_names().await?;
 
     Ok(db_names)
 }
@@ -182,7 +182,7 @@ pub async fn clear_collections(config: &MongoConfig, database: &str) -> Result<(
     let db = client.database(database);
 
     // Get all collections in the database
-    let mut collections = db.list_collection_names(None).await?;
+    let mut collections = db.list_collection_names().await?;
 
     // Remove system collections
     collections.retain(|name| !name.starts_with("system."));
@@ -190,7 +190,7 @@ pub async fn clear_collections(config: &MongoConfig, database: &str) -> Result<(
     // Clear each collection by deleting all documents
     for collection_name in collections {
         let collection = db.collection::<mongodb::bson::Document>(&collection_name);
-        collection.delete_many(mongodb::bson::doc! {}, None).await?;
+        collection.delete_many(mongodb::bson::doc! {}).await?;
     }
 
     progress.finish_with_message("Collections cleared");
