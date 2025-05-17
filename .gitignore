@@ -1,0 +1,4 @@
+/target
+.env
+/backups
+.claude/settings.local.json
