@@ -3,7 +3,8 @@ name = "janus"
 version = "0.1.0"
 edition = "2021"
 description = "Janus - MongoDB database synchronization tool"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["gagosha <me@gagosha.dev>"]
+license = "MIT"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
