@@ -1,6 +1,9 @@
-# MongoDB Importer Tool (Rust)
+# Janus - MongoDB Database Synchronization Tool
 
-A CLI application for synchronizing MongoDB databases between different environments. This tool allows you to easily export databases from one MongoDB instance and import them to another.
+[![CI](https://github.com/yourusername/janus/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/janus/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Janus is a CLI application for synchronizing MongoDB databases between different environments. Named after the Roman god of transitions and passages, Janus allows you to easily export databases from one MongoDB instance and import them to another.
 
 ## Features
 
@@ -17,20 +20,27 @@ A CLI application for synchronizing MongoDB databases between different environm
 
 ### Prerequisites
 
-- Rust and Cargo (install from https://rustup.rs)
 - MongoDB Tools (`mongodump` and `mongorestore` executables)
+- Rust and Cargo (install from https://rustup.rs)
 
 ### Build from source
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/importer_rust.git
-cd importer_rust
+git clone https://github.com/yourusername/janus.git
+cd janus
 
 # Build the project
 cargo build --release
 
-# The binary will be available at target/release/importer_rust
+# The binary will be available at target/release/janus
+```
+
+### Running with cargo
+
+```bash
+# Run directly with cargo
+cargo run -- [COMMAND] [OPTIONS]
 ```
 
 ## Configuration
@@ -103,6 +113,10 @@ cargo run -- sync --from PROD --to STG --db products
 # Synchronize 'analytics' database from GIO to DEV environment with custom target db
 cargo run -- sync --from GIO --to DEV --db analytics --target-db analytics_copy
 ```
+
+## Contributing
+
+Contributions are welcome! Feel free to submit a pull request with your changes.
 
 ## License
 

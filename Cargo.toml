@@ -1,8 +1,8 @@
 [package]
-name = "importer_rust"
+name = "janus"
 version = "0.1.0"
 edition = "2021"
-description = "MongoDB database synchronization tool"
+description = "Janus - MongoDB database synchronization tool"
 authors = ["Your Name <your.email@example.com>"]
 
 [dependencies]

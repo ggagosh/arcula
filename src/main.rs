@@ -9,8 +9,8 @@ mod core;
 mod utils;
 
 #[derive(Parser)]
-#[command(name = "mongo-importer")]
-#[command(about = "MongoDB database synchronization tool", long_about = None)]
+#[command(name = "janus")]
+#[command(about = "Janus - MongoDB database synchronization tool", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
