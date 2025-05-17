@@ -1,0 +1,31 @@
+[package]
+name = "arcula"
+version = "1.0.3"
+edition = "2021"
+description = "Arcula - MongoDB database synchronization tool"
+authors = ["gagosha <me@gagosha.dev>"]
+license = "MIT"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+mongodb = "2.8"
+tokio = { version = "1.36", features = ["full"] }
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+inquire = "0.6"
+colored = "2.1"
+dotenv = "0.15"
+log = "0.4"
+env_logger = "0.11"
+futures = "0.3"
+indicatif = "0.17"
+chrono = "0.4"
+tempfile = "3.10"
+regex = "1.10.4"
+which = "4.4"
+
+[dev-dependencies]
+tokio-test = "0.4"
+rand = "0.8"
