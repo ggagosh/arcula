@@ -28,14 +28,12 @@ fn get_container_ip(container_name: &str) -> Result<String> {
         return Err(anyhow::anyhow!("Failed to get container IP address"));
     }
 
-    let ip = String::from_utf8(output.stdout)?
-        .trim()
-        .to_string();
-    
+    let ip = String::from_utf8(output.stdout)?.trim().to_string();
+
     if ip.is_empty() {
         return Err(anyhow::anyhow!("Container IP address not found"));
     }
-    
+
     Ok(ip)
 }
 
@@ -116,11 +114,11 @@ fn setup_mongodb_containers() -> Result<((String, String), (String, String))> {
     // Wait for MongoDB to be ready
     println!("Waiting for MongoDB containers to be ready...");
     thread::sleep(Duration::from_secs(5));
-    
+
     // Get container IP addresses
     let ip1 = get_container_ip(&container_name1)?;
     let ip2 = get_container_ip(&container_name2)?;
-    
+
     println!("MongoDB containers running at IPs {} and {}", ip1, ip2);
 
     Ok(((container_name1, container_name2), (ip1, ip2)))
@@ -148,17 +146,21 @@ fn teardown_mongodb_containers(container_names: &(String, String)) -> Result<()>
 /// otherwise it will use the provided container IPs.
 fn get_test_configs(ips: Option<(String, String)>) -> (MongoConfig, MongoConfig) {
     // Check if connection strings are provided via environment variables
-    let source_uri = env::var(ENV_MONGO_SOURCE_URI)
-        .unwrap_or_else(|_| {
-            let ip = ips.as_ref().map(|(ip, _)| ip.clone()).unwrap_or_else(|| "localhost".to_string());
-            format!("mongodb://{}:27017", ip)
-        });
+    let source_uri = env::var(ENV_MONGO_SOURCE_URI).unwrap_or_else(|_| {
+        let ip = ips
+            .as_ref()
+            .map(|(ip, _)| ip.clone())
+            .unwrap_or_else(|| "localhost".to_string());
+        format!("mongodb://{}:27017", ip)
+    });
 
-    let target_uri = env::var(ENV_MONGO_TARGET_URI)
-        .unwrap_or_else(|_| {
-            let ip = ips.as_ref().map(|(_, ip)| ip.clone()).unwrap_or_else(|| "localhost".to_string());
-            format!("mongodb://{}:27017", ip)
-        });
+    let target_uri = env::var(ENV_MONGO_TARGET_URI).unwrap_or_else(|_| {
+        let ip = ips
+            .as_ref()
+            .map(|(_, ip)| ip.clone())
+            .unwrap_or_else(|| "localhost".to_string());
+        format!("mongodb://{}:27017", ip)
+    });
 
     let source_config = MongoConfig {
         connection_string: source_uri,
@@ -222,7 +224,7 @@ async fn test_mongodb_connection() -> Result<()> {
         match setup_mongodb_containers() {
             Ok((container_names, ips)) => {
                 container_info = Some((container_names, ips));
-            },
+            }
             Err(e) => {
                 eprintln!("Error setting up MongoDB containers: {}", e);
                 return Err(anyhow::anyhow!(
@@ -234,7 +236,8 @@ async fn test_mongodb_connection() -> Result<()> {
     }
 
     // Run the test
-    let (source_config, target_config) = get_test_configs(container_info.as_ref().map(|(_, ips)| ips.clone()));
+    let (source_config, target_config) =
+        get_test_configs(container_info.as_ref().map(|(_, ips)| ips.clone()));
 
     // Test that we can connect to both MongoDB instances
     let source_dbs = mongodb::list_databases(&source_config).await?;
@@ -270,7 +273,7 @@ async fn test_export_import() -> Result<()> {
         match setup_mongodb_containers() {
             Ok((container_names, ips)) => {
                 container_info = Some((container_names, ips));
-            },
+            }
             Err(e) => {
                 eprintln!("Error setting up MongoDB containers: {}", e);
                 return Err(anyhow::anyhow!(
@@ -282,7 +285,8 @@ async fn test_export_import() -> Result<()> {
     }
 
     // Get MongoDB configs
-    let (source_config, target_config) = get_test_configs(container_info.as_ref().map(|(_, ips)| ips.clone()));
+    let (source_config, target_config) =
+        get_test_configs(container_info.as_ref().map(|(_, ips)| ips.clone()));
 
     // Create test database and collection
     let test_db = "test_db";
@@ -328,7 +332,7 @@ async fn test_backup_restore() -> Result<()> {
         match setup_mongodb_containers() {
             Ok((container_names, ips)) => {
                 container_info = Some((container_names, ips));
-            },
+            }
             Err(e) => {
                 eprintln!("Error setting up MongoDB containers: {}", e);
                 return Err(anyhow::anyhow!(
@@ -387,7 +391,7 @@ async fn test_full_sync_operation() -> Result<()> {
         match setup_mongodb_containers() {
             Ok((container_names, ips)) => {
                 container_info = Some((container_names, ips));
-            },
+            }
             Err(e) => {
                 eprintln!("Error setting up MongoDB containers: {}", e);
                 return Err(anyhow::anyhow!(
@@ -399,7 +403,8 @@ async fn test_full_sync_operation() -> Result<()> {
     }
 
     // Get MongoDB configs
-    let (source_config, target_config) = get_test_configs(container_info.as_ref().map(|(_, ips)| ips.clone()));
+    let (source_config, target_config) =
+        get_test_configs(container_info.as_ref().map(|(_, ips)| ips.clone()));
 
     // Create test database and collection
     let source_db = "sync_source_db";
