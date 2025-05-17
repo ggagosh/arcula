@@ -1,6 +1,6 @@
 # Janus - MongoDB Database Synchronization Tool
 
-[![CI](https://github.com/yourusername/janus/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/janus/actions/workflows/ci.yml)
+[![CI](https://github.com/ggagosh/janus/actions/workflows/ci.yml/badge.svg)](https://github.com/ggagosh/janus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Janus is a CLI application for synchronizing MongoDB databases between different environments. Named after the Roman god of transitions and passages, Janus allows you to easily export databases from one MongoDB instance and import them to another.
@@ -27,7 +27,7 @@ Janus is a CLI application for synchronizing MongoDB databases between different
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/janus.git
+git clone https://github.com/ggagosh/janus.git
 cd janus
 
 # Build the project
