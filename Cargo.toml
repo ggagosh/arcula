@@ -1,8 +1,8 @@
 [package]
-name = "janus"
+name = "arcula"
 version = "1.0.1"
 edition = "2021"
-description = "Janus - MongoDB database synchronization tool"
+description = "Arcula - MongoDB database synchronization tool"
 authors = ["gagosha <me@gagosha.dev>"]
 license = "MIT"
 

@@ -1,9 +1,9 @@
-# Janus - MongoDB Database Synchronization Tool
+# Arcula - MongoDB Database Synchronization Tool
 
-[![CI](https://github.com/ggagosh/janus/actions/workflows/ci.yml/badge.svg)](https://github.com/ggagosh/janus/actions/workflows/ci.yml)
+[![CI](https://github.com/ggagosh/arcula/actions/workflows/ci.yml/badge.svg)](https://github.com/ggagosh/arcula/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Janus is a CLI application for synchronizing MongoDB databases between different environments. Named after the Roman god of transitions and passages, Janus allows you to easily export databases from one MongoDB instance and import them to another.
+Arcula is a CLI application for synchronizing MongoDB databases between different environments. Named after the Roman god of transitions and passages, Arcula allows you to easily export databases from one MongoDB instance and import them to another.
 
 ## Features
 
@@ -27,13 +27,13 @@ Janus is a CLI application for synchronizing MongoDB databases between different
 
 ```bash
 # Clone the repository
-git clone https://github.com/ggagosh/janus.git
-cd janus
+git clone https://github.com/ggagosh/arcula.git
+cd arcula
 
 # Build the project
 cargo build --release
 
-# The binary will be available at target/release/janus
+# The binary will be available at target/release/arcula
 ```
 
 ### Running with cargo

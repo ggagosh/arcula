@@ -6,9 +6,9 @@ use std::time::Duration;
 use ::mongodb::bson::{doc, Document};
 use ::mongodb::Client;
 use anyhow::Result;
-use janus::config::{Environment, MongoConfig};
-use janus::core::sync::{SyncConfig, SyncOptions};
-use janus::utils::mongodb;
+use arcula::config::{Environment, MongoConfig};
+use arcula::core::sync::{SyncConfig, SyncOptions};
+use arcula::utils::mongodb;
 
 // This file contains integration tests that use real MongoDB instances
 // It uses Docker to spin up temporary MongoDB containers for testing
@@ -429,7 +429,7 @@ async fn test_full_sync_operation() -> Result<()> {
     env::set_var("MONGO_TEST_TARGET_URI", &target_config.connection_string);
 
     // Perform the sync
-    let sync_result = janus::core::sync::perform_sync(sync_config).await;
+    let sync_result = arcula::core::sync::perform_sync(sync_config).await;
     assert!(sync_result.is_ok());
 
     // Verify the data was synced correctly

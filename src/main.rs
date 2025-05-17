@@ -9,8 +9,8 @@ mod core;
 mod utils;
 
 #[derive(Parser)]
-#[command(name = "janus")]
-#[command(about = "Janus - MongoDB database synchronization tool", long_about = None)]
+#[command(name = "arcula")]
+#[command(about = "Arcula - MongoDB database synchronization tool", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

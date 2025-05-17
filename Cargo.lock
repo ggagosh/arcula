@@ -111,6 +111,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
+name = "arcula"
+version = "1.0.1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "colored",
+ "dotenv",
+ "env_logger",
+ "futures",
+ "indicatif",
+ "inquire",
+ "log",
+ "mongodb",
+ "rand 0.8.5",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-test",
+ "which",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -992,32 +1018,6 @@ name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
-
-[[package]]
-name = "janus"
-version = "1.0.1"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "colored",
- "dotenv",
- "env_logger",
- "futures",
- "indicatif",
- "inquire",
- "log",
- "mongodb",
- "rand 0.8.5",
- "regex",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-test",
- "which",
-]
 
 [[package]]
 name = "jiff"
