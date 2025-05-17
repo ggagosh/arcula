@@ -27,9 +27,39 @@ cargo run -- sync --from LOCAL --to DEV --db my_database --backup true --drop tr
 ### Testing
 
 ```bash
-cargo test                 # Run all tests
-cargo test <test_name>     # Run a specific test
+cargo test                     # Run all tests
+cargo test <test_name>         # Run a specific test
+cargo test --test docker_tests # Run only MongoDB integration tests
 ```
+
+The test suite focuses on realistic integration testing using actual MongoDB instances:
+
+#### MongoDB Integration Tests
+
+The Docker tests provide end-to-end testing with actual MongoDB operations:
+- Connection verification
+- Export/import functionality
+- Backup and restore operations
+- Full synchronization workflow
+
+#### Test Configuration Options
+
+```bash
+# Run tests using Docker containers (default)
+cargo test --test docker_tests
+
+# Use external MongoDB instances (ideal for CI environments)
+export TEST_MONGO_SOURCE_URI=mongodb://localhost:27017
+export TEST_MONGO_TARGET_URI=mongodb://localhost:27018
+cargo test --test docker_tests
+```
+
+The tests will automatically:
+- Use provided MongoDB URIs if available
+- Create Docker containers if no URIs are provided
+- Run all tests against the available MongoDB instances
+
+See the `tests/README.md` file for detailed documentation on test configuration and CI integration.
 
 ### Linting and Code Quality
 
