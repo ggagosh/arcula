@@ -1,6 +1,6 @@
 [package]
 name = "arcula"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2021"
 description = "Arcula - MongoDB database synchronization tool"
 authors = ["gagosha <me@gagosha.dev>"]
