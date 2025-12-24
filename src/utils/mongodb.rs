@@ -102,13 +102,13 @@ pub async fn import_database(
         anyhow::bail!("Database directory not found: {}", db_path.display());
     }
 
-    // Build the restore command - mongorestore supports --nsInclude
+    // Build the restore command
+    // Note: --db is deprecated when restoring from a directory - mongorestore infers
+    // the database name from the directory structure
     let mut command = Command::new(&mongorestore_path);
     command
         .arg("--uri")
-        .arg(&config.connection_string)
-        .arg("--db")
-        .arg(database);
+        .arg(&config.connection_string);
 
     if drop {
         command.arg("--drop");
