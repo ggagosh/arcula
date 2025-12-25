@@ -2,10 +2,37 @@ use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, info};
 use std::path::Path;
-use std::process::{Command, Stdio};
 use std::str;
+use tokio::process::Command;
 
 use crate::config::{get_backup_dir, get_mongodb_bin_path, MongoConfig};
+
+pub fn validate_db_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        anyhow::bail!("Database name cannot be empty");
+    }
+    if name.len() > 64 {
+        anyhow::bail!("Database name too long (max 64 characters)");
+    }
+    let invalid_chars = ['/', '\\', '.', '"', '*', '<', '>', ':', '|', '?', '\0', ' '];
+    if let Some(c) = name.chars().find(|c| invalid_chars.contains(c)) {
+        anyhow::bail!("Database name contains invalid character: '{}'", c);
+    }
+    Ok(())
+}
+
+pub fn mask_connection_string(uri: &str) -> String {
+    let parts: Vec<&str> = uri.split('@').collect();
+    if parts.len() > 1 {
+        let host_and_params = parts[1];
+        if let Some(query_start) = host_and_params.find('?') {
+            let (host, _params) = host_and_params.split_at(query_start);
+            return format!("mongodb://*****@{}?<params>", host);
+        }
+        return format!("mongodb://*****@{}", parts[1]);
+    }
+    "mongodb://*****".to_string()
+}
 
 pub async fn list_databases(config: &MongoConfig) -> Result<Vec<String>> {
     let client_options = config.get_client_options().await?;
@@ -21,12 +48,13 @@ pub async fn export_database(
     database: &str,
     output_dir: &Path,
 ) -> Result<()> {
+    validate_db_name(database)?;
     info!(
         "Exporting database {} from {}",
         database, config.environment
     );
 
-    let progress = create_progress_bar("Exporting");
+    let mut progress = create_progress_bar("Exporting");
 
     let bin_path = get_mongodb_bin_path().map_err(|e| {
         error!("Failed to find MongoDB tools: {}", e);
@@ -35,7 +63,10 @@ pub async fn export_database(
     let mongodump_path = bin_path.join("mongodump");
 
     info!("Using mongodump from: {}", mongodump_path.display());
-    info!("MongoDB connection string: {}", config.connection_string);
+    info!(
+        "MongoDB connection string: {}",
+        mask_connection_string(&config.connection_string)
+    );
 
     // Use the traditional --db flag for mongodump (compatible with older versions)
     let output = Command::new(mongodump_path)
@@ -45,9 +76,8 @@ pub async fn export_database(
         .arg(database)
         .arg("--out")
         .arg(output_dir)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .output()
+        .await
         .context("Failed to execute mongodump")?;
 
     progress.finish_with_message("Export completed");
@@ -61,11 +91,14 @@ pub async fn export_database(
         info!("Export output: {}", stdout);
     }
 
-    // Verify that the export directory was created
     let db_path = output_dir.join(database);
     if !db_path.exists() {
-        error!("Export directory not found: {}", db_path.display());
-        anyhow::bail!("Export directory not found: {}", db_path.display());
+        info!(
+            "Database '{}' appears to be empty, creating placeholder directory",
+            database
+        );
+        std::fs::create_dir_all(&db_path)
+            .context("Failed to create placeholder for empty database")?;
     }
 
     Ok(())
@@ -78,6 +111,7 @@ pub async fn import_database(
     drop: bool,
     clear: bool,
 ) -> Result<()> {
+    validate_db_name(database)?;
     info!("Importing database {} to {}", database, config.environment);
 
     // If clear is true but drop is false, clear all collections first
@@ -85,7 +119,7 @@ pub async fn import_database(
         clear_collections(config, database).await?;
     }
 
-    let progress = create_progress_bar("Importing");
+    let mut progress = create_progress_bar("Importing");
 
     let bin_path = get_mongodb_bin_path().map_err(|e| {
         error!("Failed to find MongoDB tools: {}", e);
@@ -120,9 +154,8 @@ pub async fn import_database(
     info!("Running restore with directory: {}", input_dir.display());
 
     let output = command
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .output()
+        .await
         .context("Failed to execute mongorestore")?;
 
     progress.finish_with_message("Import completed");
@@ -175,7 +208,7 @@ pub async fn clear_collections(config: &MongoConfig, database: &str) -> Result<(
         database, config.environment
     );
 
-    let progress = create_progress_bar("Clearing collections");
+    let mut progress = create_progress_bar("Clearing collections");
 
     let client_options = config.get_client_options().await?;
     let client = mongodb::Client::with_options(client_options)?;
@@ -198,15 +231,41 @@ pub async fn clear_collections(config: &MongoConfig, database: &str) -> Result<(
     Ok(())
 }
 
-fn create_progress_bar(message: &str) -> ProgressBar {
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .unwrap(),
-    );
-    pb.set_message(format!("{} in progress...", message));
-    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+struct ProgressGuard {
+    pb: ProgressBar,
+    finished: bool,
+}
 
-    pb
+impl ProgressGuard {
+    fn new(message: &str) -> Self {
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} {msg}")
+                .expect("Invalid progress template - this is a bug"),
+        );
+        pb.set_message(format!("{} in progress...", message));
+        pb.enable_steady_tick(std::time::Duration::from_millis(100));
+        Self {
+            pb,
+            finished: false,
+        }
+    }
+
+    fn finish_with_message(&mut self, msg: &str) {
+        self.pb.finish_with_message(msg.to_string());
+        self.finished = true;
+    }
+}
+
+impl Drop for ProgressGuard {
+    fn drop(&mut self) {
+        if !self.finished {
+            self.pb.finish_and_clear();
+        }
+    }
+}
+
+fn create_progress_bar(message: &str) -> ProgressGuard {
+    ProgressGuard::new(message)
 }

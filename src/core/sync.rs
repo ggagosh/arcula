@@ -166,20 +166,15 @@ async fn perform_sync_single(
                     "Export directory not found at expected path: {}",
                     export_db_path.display()
                 );
-                println!(
-                    "{} Export directory not found at: {}",
-                    "Error:".red().bold(),
+                anyhow::bail!(
+                    "Export directory not found at: {}. The database may be empty.",
                     export_db_path.display()
                 );
-                return Ok(());
             }
 
-            // If source_db and target_db are different, rename the directory
             if source_db != target_db {
                 let target_db_path = temp_path.join(target_db);
-                if target_db_path.exists() {
-                    std::fs::remove_dir_all(&target_db_path)?;
-                }
+                let _ = std::fs::remove_dir_all(&target_db_path);
                 std::fs::rename(&export_db_path, &target_db_path)?;
                 println!(
                     "{} {} -> {}",

@@ -51,6 +51,10 @@ enum Commands {
         /// Interactive mode - prompt for values not provided on command line
         #[arg(short, long)]
         interactive: bool,
+
+        /// Dry-run mode - show what would be done without executing
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Show information about available MongoDB environments
     Info,
@@ -58,11 +62,13 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize environment
-    dotenv().ok();
+    if let Err(e) = dotenv() {
+        if std::path::Path::new(".env").exists() {
+            eprintln!("Warning: Failed to parse .env file: {}", e);
+        }
+    }
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    // Check if MongoDB tools are available
     if let Err(err) = config::check_mongodb_tools() {
         eprintln!("Error: MongoDB tools not found. Please install MongoDB tools (mongodump and mongorestore).");
         eprintln!("Error details: {}", err);
@@ -84,6 +90,7 @@ async fn main() -> Result<()> {
             drop,
             clear,
             interactive,
+            dry_run,
         } => {
             let params = commands::sync::SyncParams {
                 from,
@@ -94,6 +101,7 @@ async fn main() -> Result<()> {
                 drop,
                 clear,
                 interactive,
+                dry_run,
             };
             commands::sync::execute_with_params(params).await?;
         }

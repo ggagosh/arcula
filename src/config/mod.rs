@@ -79,17 +79,29 @@ impl MongoConfig {
     }
 }
 
-/// Attempts to find the MongoDB binaries directory
 pub fn get_mongodb_bin_path() -> Result<PathBuf, ConfigError> {
-    // First check if MONGODB_BIN_PATH is set in environment
     if let Ok(path) = env::var("MONGODB_BIN_PATH") {
-        let path_buf = PathBuf::from(path);
-        // Verify that the binaries exist in the specified path
-        if path_buf.join("mongodump").exists() && path_buf.join("mongorestore").exists() {
+        let path_buf = PathBuf::from(&path);
+        let mongodump_exists = path_buf.join("mongodump").exists();
+        let mongorestore_exists = path_buf.join("mongorestore").exists();
+
+        if mongodump_exists && mongorestore_exists {
             return Ok(path_buf);
         }
-        // If specified path doesn't contain the binaries, return an error
-        return Err(ConfigError::BinaryNotFound);
+
+        let mut missing = Vec::new();
+        if !mongodump_exists {
+            missing.push("mongodump");
+        }
+        if !mongorestore_exists {
+            missing.push("mongorestore");
+        }
+
+        return Err(ConfigError::InvalidEnvironment(format!(
+            "MONGODB_BIN_PATH='{}' missing: {}",
+            path,
+            missing.join(", ")
+        )));
     }
 
     // Try to find mongodump in PATH using 'which'

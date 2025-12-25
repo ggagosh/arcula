@@ -3,7 +3,7 @@ use colored::Colorize;
 use log::info;
 
 use crate::config::MongoConfig;
-use crate::utils::mongodb;
+use crate::utils::mongodb::{self, mask_connection_string};
 
 pub async fn execute() -> Result<()> {
     info!("Displaying MongoDB environment information");
@@ -69,15 +69,6 @@ pub async fn execute() -> Result<()> {
     println!();
 
     Ok(())
-}
-
-fn mask_connection_string(uri: &str) -> String {
-    // Basic masking of connection string to hide sensitive details
-    let parts: Vec<&str> = uri.split('@').collect();
-    if parts.len() > 1 {
-        return format!("mongodb://*****@{}", parts[1]);
-    }
-    "mongodb://*****".to_string()
 }
 
 fn should_skip_db(db_name: &str) -> bool {

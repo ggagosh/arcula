@@ -14,6 +14,7 @@ pub struct SyncParams {
     pub drop: Option<bool>,
     pub clear: Option<bool>,
     pub interactive: bool,
+    pub dry_run: bool,
 }
 
 /// Execute sync with individual parameters (deprecated, use execute_with_params instead)
@@ -38,6 +39,7 @@ pub async fn execute(
         drop,
         clear,
         interactive,
+        dry_run: false,
     };
 
     execute_with_params(params).await
@@ -104,6 +106,21 @@ async fn execute_interactive(params: &SyncParams) -> Result<()> {
 
         Select::new("3. Select target environment:", env_options).prompt()?
     };
+
+    if source_env == target_env {
+        println!(
+            "{} Source and target are the same environment ({})",
+            "Warning:".yellow().bold(),
+            source_env
+        );
+        let proceed = Confirm::new("Are you sure you want to proceed?")
+            .with_default(false)
+            .prompt()?;
+        if !proceed {
+            println!("Operation cancelled.");
+            return Ok(());
+        }
+    }
 
     // Step 4: Select target database with autocomplete
     let target_db_name = if let Some(tgt_db) = &params.target_db {
@@ -217,36 +234,98 @@ async fn execute_interactive(params: &SyncParams) -> Result<()> {
         options,
     };
 
-    // Perform the sync
+    if params.dry_run {
+        print_dry_run_summary(&config);
+        return Ok(());
+    }
+
     perform_sync(config).await
 }
 
+fn print_dry_run_summary(config: &SyncConfig) {
+    println!("\n{}", "=== DRY RUN MODE ===".yellow().bold());
+    println!("The following synchronization would be performed:\n");
+    println!(
+        "  {} {} → {}",
+        "Environments:".green(),
+        config.source_env,
+        config.target_env
+    );
+    println!(
+        "  {} {} → {}",
+        "Databases:".green(),
+        config.source_db,
+        config.target_db
+    );
+    println!(
+        "  {} {}",
+        "Create backup:".green(),
+        if config.options.create_backup {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
+    println!(
+        "  {} {}",
+        "Drop collections:".green(),
+        if config.options.drop_collections {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
+    println!(
+        "  {} {}",
+        "Clear collections:".green(),
+        if config.options.clear_collections {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
+    println!("\n{}", "No changes were made.".yellow());
+}
+
 async fn execute_non_interactive(params: &SyncParams) -> Result<()> {
-    // Parse source environment
     let source_env = match &params.from {
         Some(env_str) => parse_environment(env_str)?,
         None => return Err(anyhow!("Source environment is required (--from)")),
     };
 
-    // Parse target environment
     let target_env = match &params.to {
         Some(env_str) => parse_environment(env_str)?,
         None => return Err(anyhow!("Target environment is required (--to)")),
     };
 
-    // Get source database
+    if source_env == target_env {
+        println!(
+            "{} Source and target are the same environment ({}). Proceeding anyway.",
+            "Warning:".yellow().bold(),
+            source_env
+        );
+    }
+
     let source_db = match &params.db {
         Some(db_str) => db_str.clone(),
         None => return Err(anyhow!("Source database is required (--db)")),
     };
 
-    // Determine target database (use source if not specified)
+    let source_dbs = get_databases(&source_env).await?;
+    if !source_dbs.contains(&source_db) {
+        return Err(anyhow!(
+            "Database '{}' not found in '{}'. Available: {}",
+            source_db,
+            source_env,
+            source_dbs.join(", ")
+        ));
+    }
+
     let target_db_name = params
         .target_db
         .clone()
         .unwrap_or_else(|| source_db.clone());
 
-    // Create options
     let mut options = SyncOptions {
         create_backup: params.backup.unwrap_or(true),
         drop_collections: params.drop.unwrap_or(true),
@@ -254,7 +333,6 @@ async fn execute_non_interactive(params: &SyncParams) -> Result<()> {
     };
     options.update_collection_settings();
 
-    // Create sync config
     let config = SyncConfig {
         source_env,
         target_env,
@@ -263,6 +341,10 @@ async fn execute_non_interactive(params: &SyncParams) -> Result<()> {
         options,
     };
 
-    // Perform the sync
+    if params.dry_run {
+        print_dry_run_summary(&config);
+        return Ok(());
+    }
+
     perform_sync(config).await
 }
