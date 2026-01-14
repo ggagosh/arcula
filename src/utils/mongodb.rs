@@ -148,6 +148,11 @@ pub async fn import_database(
         command.arg("--drop");
     }
 
+    // When clearing (not dropping), preserve original indexes by skipping index restore
+    if clear && !drop {
+        command.arg("--noIndexRestore");
+    }
+
     // Pass parent directory - mongorestore expects structure: input_dir/database/collection.bson
     command.arg(input_dir);
 
