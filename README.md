@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/arcula.svg)](https://crates.io/crates/arcula)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> From author: This project exists to help me with my development workflow. I often need to synchronize MongoDB databases between different environments (local, dev, staging, not production 🙈). Before, I used raw `mongodump`/`mongorestore` and relied on [atuin ✨](https://github.com/atuinsh/atuin) (great tool btw) to switch between. This tool is a simple wrapper around these commands and with help of AI (Claude Code) it took max 2 hours to implement. Somehow for me it is much more convenient to use and maybe it will be useful for someone else too. 🙌
+> Arcula started as a small workflow tool for moving MongoDB databases between local, development, staging, and other controlled environments. It has grown into a safer sync CLI built around `mongodump`/`mongorestore`, with secure connection storage, explicit sync plans, backups, approvals, operation records, and backup-based revert support. It is designed to make routine database refreshes convenient while reducing the risk of destructive mistakes.
 
 Arcula is a CLI application for synchronizing MongoDB databases between different environments. It allows you to easily export databases from one MongoDB instance and import them to another.
 
