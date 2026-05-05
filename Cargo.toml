@@ -28,7 +28,9 @@ chrono = "0.4"
 tempfile = "3.20"
 regex = "1.11.1"
 which = "7.0"
+keyring = { version = "3.6", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+sha2 = "0.10"
+rand = "0.9"
 
 [dev-dependencies]
 tokio-test = "0.4"
-rand = "0.9"

@@ -251,8 +251,10 @@ async fn test_mongodb_connection() -> Result<()> {
     assert!(target_dbs.contains(&"admin".to_string()));
 
     // Teardown MongoDB containers if we created them
-    if !external_mongo && container_info.is_some() {
-        teardown_mongodb_containers(&container_info.unwrap().0)?;
+    if !external_mongo {
+        if let Some((container_names, _)) = container_info {
+            teardown_mongodb_containers(&container_names)?;
+        }
     }
 
     Ok(())
@@ -310,8 +312,10 @@ async fn test_export_import() -> Result<()> {
     assert!(verification);
 
     // Teardown MongoDB containers if we created them
-    if !external_mongo && container_info.is_some() {
-        teardown_mongodb_containers(&container_info.unwrap().0)?;
+    if !external_mongo {
+        if let Some((container_names, _)) = container_info {
+            teardown_mongodb_containers(&container_names)?;
+        }
     }
 
     Ok(())
@@ -369,8 +373,10 @@ async fn test_backup_restore() -> Result<()> {
     assert!(verification);
 
     // Teardown MongoDB containers if we created them
-    if !external_mongo && container_info.is_some() {
-        teardown_mongodb_containers(&container_info.unwrap().0)?;
+    if !external_mongo {
+        if let Some((container_names, _)) = container_info {
+            teardown_mongodb_containers(&container_names)?;
+        }
     }
 
     Ok(())
@@ -441,8 +447,10 @@ async fn test_full_sync_operation() -> Result<()> {
     env::remove_var("MONGO_TEST_TARGET_URI");
 
     // Teardown MongoDB containers if we created them
-    if !external_mongo && container_info.is_some() {
-        teardown_mongodb_containers(&container_info.unwrap().0)?;
+    if !external_mongo {
+        if let Some((container_names, _)) = container_info {
+            teardown_mongodb_containers(&container_names)?;
+        }
     }
 
     Ok(())

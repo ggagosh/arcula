@@ -1,11 +1,23 @@
 use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, info};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::str;
 use tokio::process::Command;
 
 use crate::config::{get_backup_dir, get_mongodb_bin_path, MongoConfig};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackupVerification {
+    pub database: String,
+    pub backup_path: String,
+    pub database_path: String,
+    pub exists: bool,
+    pub file_count: usize,
+    pub byte_count: u64,
+    pub verified: bool,
+}
 
 pub fn validate_db_name(name: &str) -> Result<()> {
     if name.is_empty() {
@@ -22,16 +34,22 @@ pub fn validate_db_name(name: &str) -> Result<()> {
 }
 
 pub fn mask_connection_string(uri: &str) -> String {
-    let parts: Vec<&str> = uri.split('@').collect();
-    if parts.len() > 1 {
-        let host_and_params = parts[1];
-        if let Some(query_start) = host_and_params.find('?') {
-            let (host, _params) = host_and_params.split_at(query_start);
-            return format!("mongodb://*****@{}?<params>", host);
+    if let Some((left, right)) = uri.rsplit_once('@') {
+        let scheme = left
+            .split_once("://")
+            .map(|(scheme, _)| scheme)
+            .unwrap_or("mongodb");
+        if let Some((host, _query)) = right.split_once('?') {
+            return format!("{scheme}://*****@{host}?<params>");
         }
-        return format!("mongodb://*****@{}", parts[1]);
+        return format!("{scheme}://*****@{right}");
     }
-    "mongodb://*****".to_string()
+
+    if let Some((base, _query)) = uri.split_once('?') {
+        return format!("{base}?<params>");
+    }
+
+    uri.to_string()
 }
 
 pub async fn list_databases(config: &MongoConfig) -> Result<Vec<String>> {
@@ -194,6 +212,48 @@ pub async fn create_backup(config: &MongoConfig, database: &str) -> Result<std::
     Ok(backup_path)
 }
 
+pub fn verify_backup(backup_path: &Path, database: &str) -> Result<BackupVerification> {
+    validate_db_name(database)?;
+    let database_path = backup_path.join(database);
+    let exists = database_path.exists();
+    let mut file_count = 0usize;
+    let mut byte_count = 0u64;
+
+    if exists {
+        accumulate_backup_stats(&database_path, &mut file_count, &mut byte_count)?;
+    }
+
+    Ok(BackupVerification {
+        database: database.to_string(),
+        backup_path: backup_path.display().to_string(),
+        database_path: database_path.display().to_string(),
+        exists,
+        file_count,
+        byte_count,
+        verified: exists,
+    })
+}
+
+fn accumulate_backup_stats(
+    path: &Path,
+    file_count: &mut usize,
+    byte_count: &mut u64,
+) -> Result<()> {
+    for entry in std::fs::read_dir(path)
+        .with_context(|| format!("Failed to read backup directory {}", path.display()))?
+    {
+        let entry = entry?;
+        let metadata = entry.metadata()?;
+        if metadata.is_dir() {
+            accumulate_backup_stats(&entry.path(), file_count, byte_count)?;
+        } else if metadata.is_file() {
+            *file_count += 1;
+            *byte_count += metadata.len();
+        }
+    }
+    Ok(())
+}
+
 pub async fn restore_backup(
     config: &MongoConfig,
     database: &str,
@@ -243,14 +303,20 @@ struct ProgressGuard {
 
 impl ProgressGuard {
     fn new(message: &str) -> Self {
-        let pb = ProgressBar::new_spinner();
-        pb.set_style(
-            ProgressStyle::default_spinner()
-                .template("{spinner:.green} {msg}")
-                .expect("Invalid progress template - this is a bug"),
-        );
-        pb.set_message(format!("{} in progress...", message));
-        pb.enable_steady_tick(std::time::Duration::from_millis(100));
+        let pb = if crate::output::is_json() {
+            ProgressBar::hidden()
+        } else {
+            let pb = ProgressBar::new_spinner();
+            pb.set_style(
+                ProgressStyle::default_spinner()
+                    .template("{spinner:.green} {msg}")
+                    .expect("Invalid progress template - this is a bug"),
+            );
+            pb.set_message(format!("{} in progress...", message));
+            pb.enable_steady_tick(std::time::Duration::from_millis(100));
+            pb
+        };
+
         Self {
             pb,
             finished: false,
