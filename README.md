@@ -58,7 +58,7 @@ Store connection names and safety metadata in Arcula, while the raw MongoDB URI 
 
 - macOS: Keychain
 - Windows: Credential Manager
-- Linux: Secret Service/keyring
+- Linux: kernel keyring
 
 ```bash
 # Prompts securely for the URI, then stores it in the OS keychain/keyring
