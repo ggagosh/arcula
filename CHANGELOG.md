@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0](https://github.com/ggagosh/arcula/compare/v1.0.6...v2.0.0) - 2026-05-05
+
+### Fixed
+
+- indexes
+
+### Other
+
+- Avoid DBus dependency for keyring
+- Add safe plan approval workflow
+- Small fixes
+
 ## [1.0.6](https://github.com/ggagosh/arcula/compare/v1.0.5...v1.0.6) - 2025-12-24
 
 ### Other
