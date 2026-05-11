@@ -1,7 +1,9 @@
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result};
 use keyring::Entry;
@@ -12,6 +14,9 @@ use crate::utils::mongodb::mask_connection_string;
 
 const SERVICE_NAME: &str = "arcula";
 const CONFIG_FILE_NAME: &str = "connections.json";
+const CONNECTION_VAULT_REF: &str = "connections-vault";
+
+static VAULT_CACHE: OnceLock<Mutex<Option<ConnectionSecretVault>>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConnectionPolicy {
@@ -96,10 +101,23 @@ pub struct ConnectionInfo {
     pub uri_masked: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ConnectionMigrationReport {
+    pub migrated: Vec<ConnectionInfo>,
+    pub already_in_vault: Vec<String>,
+    pub missing_legacy_secret: Vec<String>,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct ConnectionStore {
     #[serde(default)]
     connections: Vec<ConnectionMetadata>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct ConnectionSecretVault {
+    #[serde(default)]
+    uris: BTreeMap<String, String>,
 }
 
 pub fn config_path() -> PathBuf {
@@ -153,13 +171,23 @@ pub fn get_uri(name: &str) -> Result<Option<String>> {
         return Ok(None);
     };
 
-    let entry = keyring_entry(&metadata.name)?;
+    let mut vault = load_secret_vault()?;
+    if let Some(uri) = vault.uris.get(&metadata.name) {
+        return Ok(Some(uri.clone()));
+    }
+
+    // Backward compatibility: older Arcula versions stored one Keychain item per
+    // connection. Lazily migrate the requested URI into the single vault so future
+    // commands need at most one secure-storage access instead of one per connection.
+    let entry = legacy_keyring_entry(&metadata.name)?;
     let uri = entry.get_password().with_context(|| {
         format!(
             "Failed to read URI for connection '{}' from secure storage",
             metadata.name
         )
     })?;
+    vault.uris.insert(metadata.name.clone(), uri.clone());
+    save_secret_vault(&vault)?;
 
     Ok(Some(uri))
 }
@@ -191,8 +219,11 @@ pub fn upsert_connection(
         );
     }
 
-    let entry = keyring_entry(&normalized)?;
-    entry.set_password(uri).with_context(|| {
+    let mut vault = load_secret_vault()?;
+    vault
+        .uris
+        .insert(normalized.clone(), uri.trim().to_string());
+    save_secret_vault(&vault).with_context(|| {
         format!(
             "Failed to save URI for connection '{}' to secure storage",
             normalized
@@ -273,12 +304,80 @@ pub fn remove_connection(name: &str) -> Result<ConnectionInfo> {
     let metadata = store.connections.remove(index).normalize();
     let info = metadata_to_info(metadata.clone(), true)?;
 
-    if let Ok(entry) = keyring_entry(&normalized) {
+    if let Ok(mut vault) = load_secret_vault() {
+        vault.uris.remove(&normalized);
+        let _ = save_secret_vault(&vault);
+    }
+
+    if let Ok(entry) = legacy_keyring_entry(&normalized) {
         let _ = entry.delete_credential();
     }
 
     save_store(&store)?;
     Ok(info)
+}
+
+pub fn migrate_legacy_connections_to_vault() -> Result<ConnectionMigrationReport> {
+    let metadata = list_metadata()?;
+    let mut vault = load_secret_vault()?;
+    let mut migrated_metadata = Vec::new();
+    let mut already_in_vault = Vec::new();
+    let mut missing_legacy_secret = Vec::new();
+
+    for connection in metadata {
+        if vault.uris.contains_key(&connection.name) {
+            already_in_vault.push(connection.name);
+            continue;
+        }
+
+        let entry = legacy_keyring_entry(&connection.name)?;
+        match entry.get_password() {
+            Ok(uri) => {
+                vault.uris.insert(connection.name.clone(), uri);
+                migrated_metadata.push(connection);
+            }
+            Err(keyring::Error::NoEntry) => missing_legacy_secret.push(connection.name),
+            Err(err) => {
+                return Err(err).with_context(|| {
+                    format!(
+                        "Failed to read legacy URI for connection '{}' from secure storage",
+                        connection.name
+                    )
+                });
+            }
+        }
+    }
+
+    if !migrated_metadata.is_empty() {
+        save_secret_vault(&vault)?;
+    }
+
+    let migrated = migrated_metadata
+        .into_iter()
+        .map(|metadata| {
+            let uri_masked = vault
+                .uris
+                .get(&metadata.name)
+                .map(|uri| mask_connection_string(uri));
+            ConnectionInfo {
+                name: metadata.name,
+                kind: metadata.kind,
+                protected: metadata.protected,
+                secret_ref: metadata.secret_ref,
+                policy: metadata.policy,
+                uri_masked,
+            }
+        })
+        .collect();
+
+    already_in_vault.sort();
+    missing_legacy_secret.sort();
+
+    Ok(ConnectionMigrationReport {
+        migrated,
+        already_in_vault,
+        missing_legacy_secret,
+    })
 }
 
 pub fn import_env_connections(force: bool) -> Result<Vec<ConnectionInfo>> {
@@ -380,7 +479,45 @@ fn save_store(store: &ConnectionStore) -> Result<()> {
     Ok(())
 }
 
-fn keyring_entry(name: &str) -> Result<Entry> {
+fn load_secret_vault() -> Result<ConnectionSecretVault> {
+    let cache = VAULT_CACHE.get_or_init(|| Mutex::new(None));
+    if let Some(vault) = cache
+        .lock()
+        .expect("connection vault cache mutex poisoned")
+        .clone()
+    {
+        return Ok(vault);
+    }
+
+    let entry = vault_keyring_entry()?;
+    let vault = match entry.get_password() {
+        Ok(contents) => serde_json::from_str(&contents)
+            .context("Failed to parse connection secret vault from secure storage")?,
+        Err(keyring::Error::NoEntry) => ConnectionSecretVault::default(),
+        Err(err) => return Err(err).context("Failed to read connection secret vault"),
+    };
+
+    *cache.lock().expect("connection vault cache mutex poisoned") = Some(vault.clone());
+    Ok(vault)
+}
+
+fn save_secret_vault(vault: &ConnectionSecretVault) -> Result<()> {
+    let contents = serde_json::to_string(vault)?;
+    vault_keyring_entry()?
+        .set_password(&contents)
+        .context("Failed to save connection secret vault")?;
+    *VAULT_CACHE
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .expect("connection vault cache mutex poisoned") = Some(vault.clone());
+    Ok(())
+}
+
+fn vault_keyring_entry() -> Result<Entry> {
+    Entry::new(SERVICE_NAME, CONNECTION_VAULT_REF).context("Failed to open secure credential store")
+}
+
+fn legacy_keyring_entry(name: &str) -> Result<Entry> {
     let user = secret_ref(name);
     Entry::new(SERVICE_NAME, &user).context("Failed to open secure credential store")
 }

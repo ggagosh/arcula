@@ -36,6 +36,13 @@ arcula --format json connection test SOURCE
 arcula --format json connection test TARGET
 ```
 
+If the user upgraded from an older Arcula version with per-connection Keychain items, migrate those existing secure-storage entries into the single connection vault:
+
+```bash
+arcula connection migrate-vault
+arcula --format json connection list
+```
+
 If the user wants to migrate from a project `.env`, load it explicitly:
 
 ```bash
@@ -195,7 +202,8 @@ After importing, prefer stored connections without `--env`.
 - `requires human approval`: show `arcula plan approve PLAN_ID` and wait for the user.
 - `without a full backup`: recreate the plan with `--backup true` or change policy only if the user explicitly requests it.
 - `failed to connect` or timeout during backup/export/import: test the relevant connection and report connectivity, VPN, firewall, or MongoDB auth as likely causes.
-- `No matching entry found in secure storage`: re-import from `.env` if available (`arcula --env connection import-env --force`) or ask the user to re-add the connection.
+- Repeated macOS Keychain prompts after upgrading: run `arcula connection migrate-vault` once. It migrates existing old per-connection Keychain items into the single connection vault.
+- `No matching entry found in secure storage`: first try `arcula connection migrate-vault`; if the URI only exists in `.env`, run `arcula --env connection import-env --force`; otherwise ask the user to re-add the connection.
 - `operation has no sync report`: it failed before a successful sync and cannot be reverted.
 
 ## Response style

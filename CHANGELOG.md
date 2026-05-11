@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.3](https://github.com/ggagosh/arcula/compare/v2.0.2...v2.0.3) - 2026-05-11
+
+### Changed
+
+- Store connection URIs in a single secure-storage vault item instead of one Keychain item per connection, reducing repeated macOS Keychain prompts during agent workflows.
+- Added `arcula connection migrate-vault` to migrate existing per-connection secure-storage entries without reading `.env`.
+- Keep approval signing state in an owner-only local data file so `operation run` does not trigger an extra Keychain prompt after human approval.
+
 ## [2.0.2](https://github.com/ggagosh/arcula/compare/v2.0.1...v2.0.2) - 2026-05-11
 
 ### Changed

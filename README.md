@@ -103,7 +103,7 @@ Sync can then use the stored names:
 arcula sync --from dev --to prod --db my_database --backup true
 ```
 
-Stored connection metadata lives at your platform config path (or `ARCULA_CONFIG_DIR`) in `connections.json`; the URI itself is not written there. Plans, approvals, operations, and local audit metadata live under your platform data path (or `ARCULA_DATA_DIR`). The metadata format includes:
+Stored connection metadata lives at your platform config path (or `ARCULA_CONFIG_DIR`) in `connections.json`; the URI itself is not written there. Connection URIs are stored together in a single OS secure-storage vault item to avoid one Keychain prompt per connection during sync workflows. Plans, approvals, operations, and local audit metadata live under your platform data path (or `ARCULA_DATA_DIR`). The metadata format includes:
 
 ```json
 {
@@ -181,6 +181,14 @@ Import existing `.env` entries into secure storage:
 ```bash
 arcula --env connection import-env
 ```
+
+If you upgraded from an older Arcula version that stored one Keychain item per connection, migrate those existing secure-storage entries into the single connection vault to reduce repeated Keychain prompts:
+
+```bash
+arcula connection migrate-vault
+```
+
+This reads the old per-connection Keychain items once and writes them into the new vault. Use `arcula --env connection import-env --force` only when you intentionally want to import or refresh values from a `.env` file.
 
 By default Arcula detects stored connections and already-exported process environment variables. When `--env` is passed, it also loads the current directory's `.env` file and detects variables following `MONGO_<ENV>_URI`. It reads optional metadata from `MONGO_<ENV>_KIND` (or `_TYPE` / `_ROLE`). If omitted, `LOCAL`, `DEV`, `STG`, and `PROD` are inferred from the name.
 

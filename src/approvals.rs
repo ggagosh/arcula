@@ -3,12 +3,9 @@ use std::io::IsTerminal;
 use std::process::{Command, Stdio};
 
 use anyhow::{anyhow, Context, Result};
-use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const SERVICE_NAME: &str = "arcula";
-const APPROVAL_SECRET_REF: &str = "approval-signing-key";
 const APPROVAL_TTL_SECONDS: i64 = 60 * 60;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -123,37 +120,31 @@ fn approval_signature(record: &ApprovalRecord, secret: &str) -> Result<String> {
 }
 
 fn approval_secret() -> Result<String> {
-    if let Ok(entry) = Entry::new(SERVICE_NAME, APPROVAL_SECRET_REF) {
-        if let Ok(secret) = entry.get_password() {
-            return Ok(secret);
-        }
-    }
-
-    let fallback_path = crate::storage::data_dir().join("approval-signing-key");
-    if fallback_path.exists() {
-        return fs::read_to_string(&fallback_path)
+    // Keep the local approval signing secret in an owner-only data file rather
+    // than the OS keychain. Human approval already happens before this through
+    // sudo/polkit; storing this tamper-evidence key in Keychain caused an extra
+    // prompt during `operation run`, which made approval feel like it was being
+    // requested more than once.
+    let path = crate::storage::data_dir().join("approval-signing-key");
+    if path.exists() {
+        return fs::read_to_string(&path)
             .map(|value| value.trim().to_string())
-            .with_context(|| format!("Failed to read {}", fallback_path.display()));
+            .with_context(|| format!("Failed to read {}", path.display()));
     }
 
     let bytes: [u8; 32] = rand::random();
     let secret = to_hex(&bytes);
 
-    if let Ok(entry) = Entry::new(SERVICE_NAME, APPROVAL_SECRET_REF) {
-        let _ = entry.set_password(&secret);
-    }
-
-    if let Some(parent) = fallback_path.parent() {
+    if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create {}", parent.display()))?;
     }
-    fs::write(&fallback_path, &secret)
-        .with_context(|| format!("Failed to write {}", fallback_path.display()))?;
+    fs::write(&path, &secret).with_context(|| format!("Failed to write {}", path.display()))?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&fallback_path, fs::Permissions::from_mode(0o600));
+        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
     }
 
     Ok(secret)

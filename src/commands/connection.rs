@@ -7,7 +7,7 @@ use inquire::{Confirm, Password, PasswordDisplayMode};
 use serde::Serialize;
 
 use crate::config::{Environment, EnvironmentKind, MongoConfig};
-use crate::connections::{self, ConnectionInfo, ConnectionPolicyPatch};
+use crate::connections::{self, ConnectionInfo, ConnectionMigrationReport, ConnectionPolicyPatch};
 use crate::output;
 use crate::utils::mongodb;
 
@@ -104,6 +104,9 @@ pub enum ConnectionCommand {
         #[arg(long)]
         force: bool,
     },
+
+    /// Migrate old per-connection secure-storage entries into the single connection vault
+    MigrateVault,
 }
 
 #[derive(Serialize)]
@@ -147,6 +150,7 @@ pub async fn execute(command: ConnectionCommand) -> Result<()> {
         ),
         ConnectionCommand::Remove { name, yes } => remove_connection(&name, yes),
         ConnectionCommand::ImportEnv { force } => import_env_connections(force),
+        ConnectionCommand::MigrateVault => migrate_vault(),
     }
 }
 
@@ -369,6 +373,55 @@ fn remove_connection(name: &str, yes: bool) -> Result<()> {
         info.name.bold()
     );
     Ok(())
+}
+
+fn migrate_vault() -> Result<()> {
+    let report = connections::migrate_legacy_connections_to_vault()?;
+
+    if output::is_json() {
+        output::print_json_success("connection_vault_migration", &report);
+        return Ok(());
+    }
+
+    print_migration_report(&report);
+    Ok(())
+}
+
+fn print_migration_report(report: &ConnectionMigrationReport) {
+    println!(
+        "{} {} connection(s)",
+        "Migrated to connection vault:".green().bold(),
+        report.migrated.len()
+    );
+    for info in &report.migrated {
+        println!("  - {}", info.name);
+    }
+
+    if !report.already_in_vault.is_empty() {
+        println!(
+            "{} {} connection(s)",
+            "Already in vault:".yellow().bold(),
+            report.already_in_vault.len()
+        );
+        for name in &report.already_in_vault {
+            println!("  - {name}");
+        }
+    }
+
+    if !report.missing_legacy_secret.is_empty() {
+        println!(
+            "{} {} connection(s)",
+            "Missing legacy secret:".yellow().bold(),
+            report.missing_legacy_secret.len()
+        );
+        for name in &report.missing_legacy_secret {
+            println!("  - {name}");
+        }
+        println!(
+            "{} Re-add missing connections with `arcula connection add <name> --kind <kind>` or import from .env with `arcula --env connection import-env --force`.",
+            "Note:".yellow().bold()
+        );
+    }
 }
 
 fn import_env_connections(force: bool) -> Result<()> {
