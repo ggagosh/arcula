@@ -50,6 +50,25 @@ cargo build --release
 cargo run -- [COMMAND] [OPTIONS]
 ```
 
+## Agent skill
+
+Arcula ships an agent skill that teaches AI coding agents the safe plan/approval/operation workflow, connection manager commands, JSON mode, and protected-target guardrails.
+
+Install it with the open `npx skills` CLI:
+
+```bash
+# Install globally for Claude Code
+npx skills add ggagosh/arcula --skill arcula-cli -g -a claude-code
+
+# Or install into the current project for all detected agents
+npx skills add ggagosh/arcula --skill arcula-cli
+
+# From a local checkout
+npx skills add . --skill arcula-cli
+```
+
+The skill lives at `skills/arcula-cli/SKILL.md` and is discoverable by `npx skills add ggagosh/arcula --list`.
+
 ## Configuration
 
 ### Recommended: secure connection manager
