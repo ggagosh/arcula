@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1](https://github.com/ggagosh/arcula/compare/v2.0.0...v2.0.1) - 2026-05-05
+
+### Added
+
+- Added the `arcula-cli` agent skill for safe Arcula usage from AI coding agents.
+
+### Changed
+
+- Updated the README introduction and documented agent skill installation with `npx skills`.
+
 ## [2.0.0](https://github.com/ggagosh/arcula/compare/v1.0.6...v2.0.0) - 2026-05-05
 
 ### Added
