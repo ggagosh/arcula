@@ -13,7 +13,7 @@ Use this skill to operate Arcula safely. The default posture is: inspect first, 
 
 - Prefer saved plan flow for any mutating sync: `sync plan` → optional `plan approve` by human → `operation run`.
 - Use JSON for agent-readable commands: `--format json`; use `--agent` for agent execution commands.
-- Prefer `--no-env` when using stored connections so secrets come from secure storage, not `.env`.
+- Arcula does not load `.env` by default. Use stored connections by default; add `--env` only when the user explicitly wants to read a project `.env` file or import it.
 - Do not ask the user to reveal raw MongoDB URIs unless the task is explicitly connection setup. Never print raw URIs or passwords in your final answer.
 - Do not bypass protected/prod policy with direct URIs, `--to-kind`, or edited metadata unless the user explicitly asks to reconfigure policy.
 - For protected/prod targets, destructive actions (`--drop true` or `--clear true`) require `--backup true`, a successful backup, and human approval when policy requires it.
@@ -25,22 +25,22 @@ Use this skill to operate Arcula safely. The default posture is: inspect first, 
 Start with safe read-only discovery:
 
 ```bash
-arcula --no-env --format json connection list
-arcula --no-env --format json info
+arcula --format json connection list
+arcula --format json info
 ```
 
 If a specific connection will be used, test it before planning. Use the command timeout mechanism available in your agent harness so unreachable hosts do not hang indefinitely.
 
 ```bash
-arcula --no-env --format json connection test SOURCE
-arcula --no-env --format json connection test TARGET
+arcula --format json connection test SOURCE
+arcula --format json connection test TARGET
 ```
 
-If the user recently migrated from `.env`, import connections first:
+If the user wants to migrate from a project `.env`, load it explicitly:
 
 ```bash
-arcula connection import-env --force
-arcula --no-env --format json connection list
+arcula --env connection import-env --force
+arcula --format json connection list
 ```
 
 ## Connection management
@@ -68,8 +68,8 @@ Common kinds:
 Inspect policy without revealing raw secrets:
 
 ```bash
-arcula --no-env connection list
-arcula --no-env connection show prod
+arcula connection list
+arcula connection show prod
 ```
 
 ## Preferred sync workflow
@@ -79,7 +79,7 @@ arcula --no-env connection show prod
 Create a non-mutating saved plan. Use `--backup true` for protected targets and any operation you may want to revert.
 
 ```bash
-arcula --no-env sync plan \
+arcula sync plan \
   --from SOURCE \
   --to TARGET \
   --db SOURCE_DB \
@@ -101,7 +101,7 @@ Capture the returned `data.id` as `PLAN_ID`. Check the returned flags:
 Show the human-readable plan if the user needs to review it:
 
 ```bash
-arcula --no-env plan show PLAN_ID
+arcula plan show PLAN_ID
 ```
 
 ### 2. Approval gate
@@ -109,7 +109,7 @@ arcula --no-env plan show PLAN_ID
 If the plan requires human approval, do not attempt to approve it as an agent. Tell the user:
 
 ```bash
-arcula --no-env plan approve PLAN_ID
+arcula plan approve PLAN_ID
 ```
 
 Explain that this should trigger local OS user presence (for example macOS sudo/Touch ID/password or Linux sudo/polkit depending on setup). Continue only after the user says it is approved.
@@ -119,7 +119,7 @@ Explain that this should trigger local OS user presence (for example macOS sudo/
 Run the saved plan in agent mode:
 
 ```bash
-arcula --no-env operation run PLAN_ID --agent --format json
+arcula operation run PLAN_ID --agent --format json
 ```
 
 Capture the returned operation id as `OPERATION_ID`. Check `status`, `sync_report.backup_path`, and `error`.
@@ -127,8 +127,8 @@ Capture the returned operation id as `OPERATION_ID`. Check `status`, `sync_repor
 ### 4. Inspect operation records
 
 ```bash
-arcula --no-env --format json operation list
-arcula --no-env --format json operation show OPERATION_ID
+arcula --format json operation list
+arcula --format json operation show OPERATION_ID
 ```
 
 If the operation failed before import because backup/export/connectivity failed, report that no destructive import should have occurred. If the operation failed during import, check whether Arcula restored the backup and report `restored_from_backup` from the sync report when present.
@@ -140,13 +140,13 @@ Only completed operations with a backup path can be reverted.
 Preview first:
 
 ```bash
-arcula --no-env operation revert OPERATION_ID --dry-run --format json
+arcula operation revert OPERATION_ID --dry-run --format json
 ```
 
 If the user confirms, revert for real:
 
 ```bash
-arcula --no-env operation revert OPERATION_ID --confirm OPERATION_ID --format json
+arcula operation revert OPERATION_ID --confirm OPERATION_ID --format json
 ```
 
 Treat revert as a mutating operation. If the target policy requires human approval, Arcula may ask for OS user presence.
@@ -156,7 +156,7 @@ Treat revert as a mutating operation. If the target policy requires human approv
 For dev/local targets where policy allows agent apply, the saved plan flow still works and is preferred. If the user explicitly asks for a quick dev refresh, immediate run is acceptable only after dry-run and only for non-protected targets:
 
 ```bash
-arcula --no-env sync run --agent \
+arcula sync run --agent \
   --from SOURCE \
   --to DEV_TARGET \
   --db SOURCE_DB \
@@ -168,7 +168,7 @@ arcula --no-env sync run --agent \
 Then, if safe and requested:
 
 ```bash
-arcula --no-env sync run --agent \
+arcula sync run --agent \
   --from SOURCE \
   --to DEV_TARGET \
   --db SOURCE_DB \
@@ -178,12 +178,24 @@ arcula --no-env sync run --agent \
 
 Do not use this fast path for prod/protected targets.
 
+## Legacy `.env` usage
+
+Use `--env` only when the user explicitly wants Arcula to load `.env` from the current directory:
+
+```bash
+arcula --env info
+arcula --env connection import-env --force
+arcula --env sync plan --from LOCAL --to DEV --db my_database --backup true
+```
+
+After importing, prefer stored connections without `--env`.
+
 ## Troubleshooting patterns
 
-- `requires human approval`: show `arcula --no-env plan approve PLAN_ID` and wait for the user.
+- `requires human approval`: show `arcula plan approve PLAN_ID` and wait for the user.
 - `without a full backup`: recreate the plan with `--backup true` or change policy only if the user explicitly requests it.
 - `failed to connect` or timeout during backup/export/import: test the relevant connection and report connectivity, VPN, firewall, or MongoDB auth as likely causes.
-- `No matching entry found in secure storage`: re-import from `.env` if available (`arcula connection import-env --force`) or ask the user to re-add the connection.
+- `No matching entry found in secure storage`: re-import from `.env` if available (`arcula --env connection import-env --force`) or ask the user to re-add the connection.
 - `operation has no sync report`: it failed before a successful sync and cannot be reverted.
 
 ## Response style

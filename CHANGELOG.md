@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2](https://github.com/ggagosh/arcula/compare/v2.0.1...v2.0.2) - 2026-05-11
+
+### Changed
+
+- Disabled `.env` loading by default so stored secure connections are the default source of connection configuration.
+- Added the global `--env` flag to explicitly load `.env` for legacy, CI, migration, and one-off workflows.
+- Updated the Arcula agent skill and documentation to use the safer default connection behavior.
+
 ## [2.0.1](https://github.com/ggagosh/arcula/compare/v2.0.0...v2.0.1) - 2026-05-05
 
 ### Added

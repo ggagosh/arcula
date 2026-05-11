@@ -147,7 +147,7 @@ Protected/prod connections always keep a safety floor: agent apply is disabled, 
 
 ### Legacy / CI: `.env` and direct URIs
 
-`.env` is still supported for CI, Docker, and one-off use:
+Arcula does **not** load `.env` by default. This keeps global stored connections predictable and prevents random project `.env` files from changing sync behavior. `.env` is still supported for CI, Docker, migration, and one-off use when you pass `--env`:
 
 ```
 # MongoDB Connection URIs - You can add any environment you need
@@ -179,10 +179,10 @@ RUST_LOG=info
 Import existing `.env` entries into secure storage:
 
 ```bash
-arcula connection import-env
+arcula --env connection import-env
 ```
 
-Arcula dynamically detects all stored connections plus `.env` variables following `MONGO_<ENV>_URI`. It also reads optional metadata from `MONGO_<ENV>_KIND` (or `_TYPE` / `_ROLE`). If omitted, `LOCAL`, `DEV`, `STG`, and `PROD` are inferred from the name.
+By default Arcula detects stored connections and already-exported process environment variables. When `--env` is passed, it also loads the current directory's `.env` file and detects variables following `MONGO_<ENV>_URI`. It reads optional metadata from `MONGO_<ENV>_KIND` (or `_TYPE` / `_ROLE`). If omitted, `LOCAL`, `DEV`, `STG`, and `PROD` are inferred from the name.
 
 ## Usage
 
@@ -221,8 +221,8 @@ arcula operation revert <operation-id> --confirm <operation-id>
 Agents can create plans and run safe/dev plans when the target connection policy allows `allow_agent_apply=true`:
 
 ```bash
-arcula --no-env sync plan --agent --from PROD --to DEV --db my_database
-arcula --no-env operation run <plan-id> --agent
+arcula sync plan --agent --from PROD --to DEV --db my_database
+arcula operation run <plan-id> --agent
 ```
 
 For protected/prod targets, agent execution returns a human-approval-required error until a human runs `arcula plan approve <plan-id>` from an interactive terminal. Passwordless `sudo` is rejected as an approval provider because it does not prove user presence.
@@ -242,10 +242,10 @@ cargo run -- sync --from LOCAL --to DEV --db my_database --backup true
 ```
 
 Options:
-- `--from`: Source stored connection or `.env` environment
-- `--to`: Target stored connection or `.env` environment
-- `--from-uri`: Source MongoDB URI; bypasses `.env` for source
-- `--to-uri`: Target MongoDB URI; bypasses `.env` for target
+- `--from`: Source stored connection or loaded environment variable
+- `--to`: Target stored connection or loaded environment variable
+- `--from-uri`: Source MongoDB URI; bypasses stored connections/environment lookup for source
+- `--to-uri`: Target MongoDB URI; bypasses stored connections/environment lookup for target
 - `--from-kind` / `--to-kind`: Environment kind override (`local`, `dev`, `staging`, `prod`, `other`)
 - `--db`: Database to synchronize
 - `--target-db`: Target database name (defaults to source database name)
@@ -260,7 +260,7 @@ Options:
 - `operation run`: Execute a saved plan and record operation metadata
 - `operation revert`: Restore the target DB from the operation's pre-sync backup
 - `--format json`: Machine-readable output for `info` and sync plans/results
-- `--no-env`: Do not load `.env`
+- `--env`: Load `.env` from the current directory for legacy/CI workflows. By default `.env` is not loaded.
 
 ### Examples
 
@@ -274,8 +274,8 @@ cargo run -- sync --from PROD --to STG --db products
 # Synchronize 'analytics' database from RANDOM to DEV environment with custom target db
 cargo run -- sync --from RANDOM --to DEV --db analytics --target-db analytics_copy
 
-# Agent-friendly dry run using direct URIs, without reading .env
-cargo run -- --no-env sync --agent \
+# Agent-friendly dry run using direct URIs. .env is not loaded by default.
+cargo run -- sync --agent \
   --from-uri mongodb://source:27017 \
   --to-uri mongodb://target:27017 \
   --to-kind prod \
@@ -284,8 +284,8 @@ cargo run -- --no-env sync --agent \
   --dry-run
 
 # Agent-friendly saved plan flow for a policy-allowed dev target
-cargo run -- --no-env sync plan --agent --from PROD --to DEV --db analytics
-cargo run -- --no-env operation run <plan-id> --agent
+cargo run -- sync plan --agent --from PROD --to DEV --db analytics
+cargo run -- operation run <plan-id> --agent
 
 # Protected/prod target flow with human approval
 cargo run -- sync plan --from DEV --to PROD --db analytics --backup true

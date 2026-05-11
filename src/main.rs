@@ -28,8 +28,12 @@ struct Cli {
     #[arg(long, global = true)]
     no_color: bool,
 
-    /// Do not load .env from the current directory
+    /// Load .env from the current directory for legacy/CI workflows
     #[arg(long, global = true)]
+    env: bool,
+
+    /// Deprecated: .env loading is disabled by default
+    #[arg(long, global = true, hide = true, conflicts_with = "env")]
     no_env: bool,
 
     #[command(subcommand)]
@@ -85,7 +89,7 @@ async fn main() -> Result<()> {
         colored::control::set_override(false);
     }
 
-    if !cli.no_env {
+    if cli.env && !cli.no_env {
         if let Err(e) = dotenv() {
             if output::is_text() && std::path::Path::new(".env").exists() {
                 eprintln!("Warning: Failed to parse .env file: {e}");
