@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1](https://github.com/ggagosh/arcula/compare/v2.0.0...v2.0.1) - 2026-05-11
+
+### Other
+
+- add Arcula agent skill
+- update project introduction
+
 ## [2.0.0](https://github.com/ggagosh/arcula/compare/v1.0.6...v2.0.0) - 2026-05-05
 
 ### Added
